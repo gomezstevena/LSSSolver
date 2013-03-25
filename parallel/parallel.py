@@ -116,20 +116,21 @@ class MPIComm(object):
 
         if N == self.chunk+2:
 
+            """
             if not self.end_node:
                 self._COMM.Send( ( data[-2], M, MPI.DOUBLE), dest = self.rank+1 )
             if not self.start_node:
                 self._COMM.Recv( ( data[ 0], M, MPI.DOUBLE), source=self.rank-1 )
             """
-            if self.start_node:
+            if self.start_node and not self.end_node:
                 self._COMM.Send( data[-2],  dest =self.rank+1 )
                 self._COMM.Recv( data[-1], source=self.rank+1 )
                 data[0] = 0.0
-            elif self.end_node:
+            elif self.end_node and not self.start_node:
                 self._COMM.Recv( data[ 0], source=self.rank-1 )
                 self._COMM.Send( data[ 1],  dest =self.rank-1 )
                 data[-1] = 0.0
-            elif not self.start_node and not self.end_node:
+            elif not (self.start_node or self.end_node):
                 self._COMM.Sendrecv( data[-2], dest=self.rank+1, recvbuf=data[ 0], source=self.rank-1)
                 self._COMM.Sendrecv( data[ 1], dest=self.rank-1, recvbuf=data[-1], source=self.rank+1)
             """
@@ -142,6 +143,7 @@ class MPIComm(object):
                 data[ 0] = 0.0
             elif self.end_node:
                 data[-1] = 0.0
+            """
 
         elif N == self.chunk+1:
 
@@ -162,6 +164,20 @@ class MPIComm(object):
 
         else:
             raise ValueError("Data must have N/D+2 or N/D+1 timesteps, N/D = {0:d}, data_len = {1:d}".format(self.chunk, N) )
+
+
+    def parMap(self, func, data, mid=False):
+        data = data.reshape( (-1, self.M) )
+
+        if mid:
+            data = 0.5*( data[1:] + data[:-1] )
+        
+        f_data = array([ func(d) for d in data ])
+
+        z = zeros( (1,self.M) )
+        final = vstack( [z, f_data, z] )
+        self.fixOverlap(final)
+        return final
 
 
     def printInSequence(self, data):
@@ -317,6 +333,12 @@ class MGridParallel(MGrid):
         self.comm.fixOverlap( out )
         return out.ravel()
 
+    def BT(self, w):
+        w = w.reshape((-1, self.m) )
+        v = self.matBTvec( w[1:-1] ).reshape( (-1, self.m) )
+        self.comm.fixOverlap(v)
+        return v
+
     __mul__ = schur
 
     def restrictTime(self, u):
@@ -343,6 +365,9 @@ class MGridParallel(MGrid):
             assert False
 
         return uf
+
+    def mapTraj(self, func):
+        return self.comm.parMap(func, self.traj, mid=True)
 
 #ROOT = "/master/home/gomezs/isoturb/"
 ROOT = ""

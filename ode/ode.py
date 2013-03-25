@@ -63,8 +63,8 @@ class LorenzSystem (Ode):
         x,y,z = u
         return r_[ 0,  x, 0 ]
 
-    def perturbation(self, u):
-        return self.dfdrho(u)
+    #def perturbation(self, u):
+    #    return self.dfdrho(u)
 
 
 def trapIntegrate( f, u0, dt, N, tol=1e-8, t0 = 0.0):
@@ -125,16 +125,16 @@ class ODELSS (multigrid.MGrid):
         self.G =  I/self.dt - A/2.
         N = self.n
         m = self.m
-        self.B =  bsr_matrix( (self.F, r_[:N], r_[:N+1]),
+        self._B =  bsr_matrix( (self.F, r_[:N], r_[:N+1]),
                                     blocksize=(m,m), shape=(N*m, (N+1)*m) ) \
                 + bsr_matrix( (self.G, r_[1:N+1], r_[:N+1]),
                                     blocksize=(m,m), shape=(N*m, (N+1)*m) )
-        self.BT = self.B.T.tobsr()
-        self.S = self.B * self.B.T
+        self._BT = self._B.T.tobsr()
+        self._S = self._B * self._B.T
 
     def checkB(self, v):
 
-        w = self.B * v.ravel()
+        w = self._B * v.ravel()
         v = v.reshape((-1, self.m))
         dvdt = (v[1:] - v[:-1] )/dt
         Av = zeros( (self.n+1, self.m) )
@@ -149,11 +149,11 @@ class ODELSS (multigrid.MGrid):
         print self.normf(err)/self.normf( v.ravel() )
 
     def matBTvec(self, w):
-        return self.BT * w.ravel()
+        return self._BT * w.ravel()
 
 
     def schur(self, w):
-        return self.B*self.matBTvec(w) + self.eps * self.matEETvec(w)
+        return self._B*self.matBTvec(w) + self.eps * self.matEETvec(w)
 
     def restrict(self, w):
         return self.restrictTime(w).ravel()

@@ -32,6 +32,8 @@ class VCycle(MultigridCycle):
         self.shape = (self.ns.n, self.ns.m)
 
         #print self.depth, self.pre_iters, self.post_iters
+        if isinstance(levels, int):
+            levels = [ True ] * levels
 
         if levels:
             dlevel = levels.pop(0)
