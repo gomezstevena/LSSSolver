@@ -1,5 +1,7 @@
 from numpy import *
-from ..isoturb.trapezoidal import IF3DTrap
+from . import IF3DTrap
+from .isoturb_multigrid import IF3DTrap, IF3DMGrid
+from ..parallel import MGridParallel
 
 class IF3DParallel(MGridParallel, IF3DMGrid):
     def __init__(self, k, nu, dt, traj, shape, top=False):
