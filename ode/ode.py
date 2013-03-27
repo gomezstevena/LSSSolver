@@ -67,40 +67,6 @@ class LorenzSystem (Ode):
     #    return self.dfdrho(u)
 
 
-def trapIntegrate( f, u0, dt, N, tol=1e-8, t0 = 0.0):
-    #u_traj = [ u0.copy() ]
-    u_traj = zeros( (N+1,f.dim) )
-    u_traj[0] = u0
-
-    u0 = u0.copy()
-    f0 = f( u0, t0)
-
-
-    I = eye(f.dim)
-
-    for i in xrange(1,N+1):
-        t = t0 + i*dt
-
-        w = u0.copy()
-        R = dt*f0
-        nr = norm(R)
-        while nr > tol:
-            dR = I - (dt/2.)*f.dfdu(w,t)
-            w -= solve(dR, R)
-
-            fw = f(w,t)
-            R = w - u0 - (dt/2.)*( f0 + fw )
-            nr = norm(R)
-
-        f0 = fw
-        u0 = w
-
-        #u_traj.append( u0.copy() )
-        u_traj[i] = u0
-
-    return array(u_traj)
-
-
 class ODELSS (multigrid.MGrid):
     def __init__(self, sys, dt, traj):
         super(OdeLSS, self).__init__( sys, dt, traj, shape=None)
@@ -171,11 +137,6 @@ class ODEPar (MGridParallel, ODELSS):
         self.t = r_[(self.comm.rank-1):(self.comm.rank-1+self.comm.chunk)]*self.dt - self.dt/2
         self._constructMatrices()
         self._base = ODELSS
-
-
-def plotcomps(u, axes=(0,2), *args, **kwargs ):
-    u = u.reshape((-1,3))
-    plot( u[:,axes[0]], u[:, axes[1]], *args, **kwargs )
 
 
 def systemSolver( sys, traj, rhs, dt, levels = 5, tol=1e-5 ):
