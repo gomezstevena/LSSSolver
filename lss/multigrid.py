@@ -89,7 +89,7 @@ class VCycleKrylov (VCycle):
         call = lambda x,r: self.ns.iterHook(r, self.depth, pre)
 
         new_w, err = self.method( self.ns, rhs, x0=w, maxiter=iters, dot=self.ns.dot, 
-                                callback=call, skip=self.skip, tol=self.tol )
+                                callback=call, tol=self.tol )
         
         w[:] = new_w
         res = rhs - self.ns * w

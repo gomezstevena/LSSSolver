@@ -52,7 +52,7 @@ class BaseTrajectory (object):
 
     @property 
     def times(self):
-        return np.r_[self.N]*self.dt + self.t0
+        return np.r_[:self.N+1]*self.dt + self.t0
 
     def __getitem__(self, args):
         return self.u[args]

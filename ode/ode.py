@@ -138,19 +138,3 @@ class ODEPar (MGridParallel, ODELSS):
         self._constructMatrices()
         self._base = ODELSS
 
-
-def systemSolver( sys, traj, rhs, dt, levels = 5, tol=1e-5 ):
-
-    shape = ( traj.shape[0] -1, traj.shape[1] ) if MASTER else None
-    L = ODEPar( sys, dt, traj, shape, top=True )
-    
-    lvls = [ True ] * levels
-    vcycle = VCycleKrylov( L, lvls, pre_iters=40, post_iters=80, method = minRes, tol=tol)
-    w, err = conjGrad( L, rhs, dot=L.dot, M=vcycle, tol=tol )
-
-    v = ls.matBTvec( w.reshape((-1,ls.m))[1:-1] )
-    ls.comm.fixOverlap( v, add=True)
-
-    v_full = ls.comm.collect(v)
-
-    return v_full
