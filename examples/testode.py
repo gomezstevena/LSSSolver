@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     dt = 0.02   # Time step size
     N = 2**11   # Number of time steps
-    tol = 1e-7  # Relative Tolerance for solver
+    tol = 1e-6  # Relative Tolerance for solver
 
 
     if LSS.parallel.MASTER: # Only output if Master node (i.e. Node 0)
@@ -16,8 +16,8 @@ if __name__ == '__main__':
 
 
     # Create Initial Trajectory or load from file
-    T_final = N*dt
-    T_windup = N*dt/10.0
+    T_final = (N+1)*dt
+    T_windup = (N+1)*dt/10.0
     traj = LSS.Trajectory( lorenz, time=(T_windup, T_final), dt=dt, filename='lorenz_data')
 
 
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     lsq = LSS.ShadowODE( traj, iters=(30,60), tol=tol )
     rhs = lsq.mapTraj( lorenz.dfdrho )
 
-    #Optional: callback logs iterations and outputs to stdout every skip iterations
+    # Optional: callback logs iterations and outputs to stdout every skip iterations
     call = LSS.callbacks.LogCallback(lsq, rhs, fname='ode_log.npy', skip=5 ) 
 
     # Solve System with rhs, uses Conjugate Gradient w/ Multigrid Preconditioner
@@ -56,9 +56,11 @@ if __name__ == '__main__':
         # Plot Cumulative sensivity
         plt.subplot(1,2,1)
 
-        plt.plot( traj.times, np.cumsum(vz)/np.r_[1:N+2] )
+        plt.plot( traj.times, vz)#np.cumsum(vz)/np.r_[1:N+2] )
         plt.xlabel(r'$t$')
-        plt.ylabel(r'Cumulative Mean Z Sensivity')
+        plt.ylabel(r'Instantaneous Mean Z Sensivity')
+        plt.plot([0, (N+1)*dt], [ddrho[2], ddrho[2]], '--r' )
+        plt.xlim( 0, (N+1)*dt )
 
         # Plot Residual over time
         plt.subplot(1,2,2)

@@ -3,6 +3,7 @@ import ode
 from lss import VCycleKrylov
 
 class ShadowODE (object):
+    "Friendly wrapper class for computing shadow trajectories for an ODE"
     def __init__(self, traj, outer=krylov.conjGrad, inner = krylov.minRes, 
                                           levels=5, iters=(40,80), tol = 1e-6 ):
         self._traj = traj

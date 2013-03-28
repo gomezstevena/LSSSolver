@@ -25,17 +25,19 @@ class BaseTrajectory (object):
             raise TypeError("Require either numeric or 2-tuple of numeric types for time paramater")
 
 
-        self.N = int( math.ceil( self.end_time / self.dt ) )
-        self.end_time = self.N * self.dt
+        self.N = int( math.ceil( self.end_time / self.dt ) ) - 1
+        self.end_time = (self.N+1)*self.dt
+
+        self.times = self.t0 + np.arange( 0, self.end_time, self.dt )
 
 
 
     def create(self):
         "Create the trajectory using Implicit-Trapezoidal scheme for integration"
         if self.windup:
-            Nw = int( math.ceil( self.windup_time/self.dt ) )
+            Nw = int( math.ceil( self.windup_time/self.dt ) ) - 1
             u0 = np.ones(self.system.dim) if self.u0 is None else self.u0
-            u = trapIntegrate(self.system, u0, self.dt, Nw, tol=self.tol, t0 = self.t0-Nw*self.dt)
+            u = trapIntegrate(self.system, u0, self.dt, Nw, tol=self.tol, t0 = self.t0-(Nw+1)*self.dt)
             u0 = u[-1]
 
         self.u  = trapIntegrate(self.system, u0, self.dt, self.N, tol=self.tol, t0=self.t0)
@@ -49,10 +51,6 @@ class BaseTrajectory (object):
     @property 
     def dim(self):
         return self.system.dim
-
-    @property 
-    def times(self):
-        return np.r_[:self.N+1]*self.dt + self.t0
 
     def __getitem__(self, args):
         return self.u[args]
@@ -75,11 +73,13 @@ class Trajectory (BaseTrajectory):
             u = data['u']
             self.N = len(u)-1
             self.u = u
-            self.end_time = self.N * self.dt
+            self.end_time = (self.N+1) * self.dt
             self.t0 = data['t0']
             self.tol = kwargs.pop('tol', 1e-8)
             self.u0 = self.u[0]
             self.system = data['system']
+            self.times = self.t0 + np.arange( 0, self.end_time, self.dt )
+
         else:
             super(Trajectory, self).__init__(*args, **kwargs)
             self.create()
