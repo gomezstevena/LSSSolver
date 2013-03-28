@@ -3,13 +3,15 @@
 
 Python Code for solving least-squares sensitivity problems for Ordinary Differential Equations (ODE's) both sequentially and in parallel. Used to compute sensitvities to Long-Time-Average quantities for periodic and chaotic ODE's.
 
+A simple example is given in examples/testode.py
+
 Dependencies:
 -------------
 
-Python 2.7
-NumPy
-SciPy
-mpi4py
+* Python 2.7 (2.6?)
+* NumPy
+* SciPy
+* mpi4py
 
 Copyright:
 ==============
