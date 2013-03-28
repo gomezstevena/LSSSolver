@@ -116,7 +116,7 @@ class MPIComm(object):
 
         if N == self.chunk+2:
 
-            """
+            
             if not self.end_node:
                 self._COMM.Send( ( data[-2], M, MPI.DOUBLE), dest = self.rank+1 )
             if not self.start_node:
@@ -143,7 +143,7 @@ class MPIComm(object):
                 data[ 0] = 0.0
             elif self.end_node:
                 data[-1] = 0.0
-            """
+            
 
         elif N == self.chunk+1:
 

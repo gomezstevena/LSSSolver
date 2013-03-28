@@ -1,6 +1,7 @@
 import LSSSolver as LSS
 import numpy as np
 from matplotlib import pyplot as plt
+import time
 
 if __name__ == '__main__':
     # Define Lorenz ODE
@@ -8,7 +9,7 @@ if __name__ == '__main__':
 
     dt = 0.02   # Time step size
     N = 2**11   # Number of time steps
-    tol = 1e-6  # Relative Tolerance for solver
+    tol = 1e-8  # Relative Tolerance for solver
 
 
     if LSS.parallel.MASTER: # Only output if Master node (i.e. Node 0)
@@ -27,29 +28,19 @@ if __name__ == '__main__':
     rhs = lsq.mapTraj( lorenz.dfdrho )
 
     # Optional: callback logs iterations and outputs to stdout every skip iterations
-    call = LSS.callbacks.LogCallback(lsq, rhs, fname='ode_log.npy', skip=5 ) 
+    call = LSS.callbacks.LogCallback(lsq, rhs, fname='ode_log.npy', skip=15 ) 
 
     # Solve System with rhs, uses Conjugate Gradient w/ Multigrid Preconditioner
-    w, err = lsq.solve(rhs, callback=call, tol=tol)
+    v = lsq.solve(rhs, tol=tol, callback=call)
     
-    # Final residual
-    res = rhs - lsq*w
-    nr = lsq.normf(res)
-
-    v = lsq.BT(w)
-
-    w_full = lsq.comm.collect(w)
     v_full = lsq.comm.collect(v)
 
     ##-------------------------------------------------------------##
     ## Post processing done only on master node                    ##
     ##-------------------------------------------------------------##
     if LSS.parallel.MASTER:
-        print 'CG Info err:{}, n_iters:{}'.format(*err)
-        print 'Final res:', nr, 'Rel Res:', nr/call.nb
 
-        vx,vy,vz = v_full.T
-        x,y,z = traj.u.T
+        vx, vy, vz = v_full.T
         ddrho = np.mean(v_full, axis=0)
         print 'Average Z sensitivity mean =', ddrho[2]
 
@@ -70,7 +61,7 @@ if __name__ == '__main__':
         print 'Total Time:', t[-1]
         plt.semilogy( t, res )
         plt.xlabel(r'Wall Time (seconds)')
-        plt.ylabel(r'$\|rhs - A w\|_2$')
+        plt.ylabel(r'$\|residual\|_2$')
         plt.grid('on')
         plt.tight_layout()
         plt.show()

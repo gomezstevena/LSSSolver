@@ -37,7 +37,7 @@ class LogCallback(object):
             print 'i:{:03d}\tr: {:.3e}\tlog10(r/r0): {:.2f}\tdt: {:0.3f}'.format(
                                                 self.i, nr, log10(nr/self.nb), self.dt)
             self.dt = 0.0
-        self.saveLog()
+            self.saveLog()
 
     def saveLog(self):
         if self.MASTER and self.fname is not None:

@@ -1,5 +1,4 @@
-import krylov
-import ode
+import krylov, ode
 from lss import VCycleKrylov
 
 class ShadowODE (object):
@@ -20,7 +19,16 @@ class ShadowODE (object):
         ls = self.lss_eqns
         w, err = self.outer( ls, rhs, tol=tol, callback=callback, 
                                maxiter = maxiter, dot = ls.dot, M = self.vcycle)
-        return w, err
+        
+        
+        self._last_lagrange_multiplier = w
+        self._last_shadow_trajectory = self.lss_eqns.BT(w)
+        
+        if err[0] != 0:
+            raise RuntimeWarning('Solution did not converge within tolerance in {} iterations'.format(err[1]) )
+        
+        return self._last_shadow_trajectory
+
 
 
     @property 
@@ -31,7 +39,7 @@ class ShadowODE (object):
     def ode(self):
         return self.traj.system
 
-    def __getattr__(self, thing):
+    def __getattr__(self, thing): #Ugly hack for now
         return getattr(self.lss_eqns, thing)
 
     def __mul__(self, w):

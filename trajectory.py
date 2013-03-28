@@ -3,7 +3,8 @@ from numpy import linalg
 import numbers, math, os
 import cPickle as pickle
 
-class BaseTrajectory (object):
+
+class OdeTrajectory (object):
     def __init__(self, system, time, dt, u0 = None, tol=1e-8, t0 = 0.0 ):
 
         if callable(system) and hasattr(system, 'dim') and hasattr(system, 'dfdu'):
@@ -55,8 +56,14 @@ class BaseTrajectory (object):
     def __getitem__(self, args):
         return self.u[args]
 
+    def save(self, filename):
+        with open(filename, 'wb') as data_file:
+            data = {'dt':self.dt, 'u': self.u, 't0':self.t0, 'system':self.system }
+            pickle.dump(data, data_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+
             
-class Trajectory (BaseTrajectory):
+class Trajectory (OdeTrajectory):
     "Defines a trajectory that can be created or optionally loaded from file"
     def __init__(self, *args, **kwargs):
         self.filename = kwargs.pop('filename', 'data.traj' )
@@ -83,13 +90,9 @@ class Trajectory (BaseTrajectory):
         else:
             super(Trajectory, self).__init__(*args, **kwargs)
             self.create()
-            self.save()
+            self.save(self.filename)
 
-    def save(self):
-        with open(self.filename, 'wb') as data_file:
-            data = {'dt':self.dt, 'u': self.u, 't0':self.t0, 'system':self.system }
-            pickle.dump(data, data_file, protocol=pickle.HIGHEST_PROTOCOL)
-
+    
 
 
 
