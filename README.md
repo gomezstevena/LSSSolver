@@ -12,6 +12,7 @@ Dependencies:
 * NumPy
 * SciPy
 * mpi4py
+* Optional: matplotlib required for example code
 
 Copyright:
 ==============
