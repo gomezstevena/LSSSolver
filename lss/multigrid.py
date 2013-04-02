@@ -107,7 +107,19 @@ class MGrid(lss.LSS):
 
 
     def coarsen(self, d_level=True):
-        raise NotImplementedError("Must implement coarsening in subclass")
+        #raise NotImplementedError("Must implement coarsening in subclass")
+        self.coarse_level = d_level
+        N, M = self.shape
+        dtn = self.dt
+        if self.coarse_level[0]:
+            N //= 2
+            dtn *= 2.0
+        if self.coarse_level[1]:
+            M /= 2
+
+        self.cshape = (N, M)
+        traj_coarse = self.restrict(self.traj).reshape( (N+1,M) )
+        self.ns_coarse = type(self)( self.ns, dtn, traj_coarse, shape=self.cshape )
 
     def restrict(self, w):
         """Restrict values in w to coarser grid"""
@@ -162,6 +174,12 @@ class MGrid(lss.LSS):
             res[1:-1:2] = 0.5*(wc[1:] + wc[:-1])
         else:
             return hstack( (wc, wc) ).reshape((-1,m))
+
+    def restrictSpace(self, w):
+        return w[..., ::2]
+
+    def interpolateSpace(self, w):
+        return repeat(w, 2)
 
     def iterHook(self, res, lvl, pre=True):
         pass

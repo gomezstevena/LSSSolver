@@ -25,7 +25,7 @@ class ShadowODE (object):
         self._last_shadow_trajectory = self.lss_eqns.BT(w)
         
         if err[0] != 0:
-            raise RuntimeWarning('Solution did not converge within tolerance in {} iterations'.format(err[1]) )
+            raise RuntimeWarning('Solution did not converge within tolerance in {} iterations'.format(err[1]))
         
         return self._last_shadow_trajectory
 
