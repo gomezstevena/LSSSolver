@@ -12,7 +12,7 @@ Dependencies:
 * NumPy
 * SciPy
 * mpi4py
-* Optional: If using Isotropic Turbulence Code use [anfft](https://code.google.com/p/anfft/) so that the implementation will a faster FFT implementation (based on FFTW)
+* Optional: If using isotropic turbulence code install [anfft](https://code.google.com/p/anfft/) to use a faster FFT implementation (based on FFTW)
 * Optional: matplotlib required for example code
 
 Copyright:
