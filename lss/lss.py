@@ -27,6 +27,11 @@ class LSS(object):
 
         self.eps = 1E-5
 
+        self._prepare()
+
+    def _prepare(self):
+        pass
+
     @property
     def n(self):
         'number of time steps (length of trajectory - 1)'

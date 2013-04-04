@@ -109,7 +109,7 @@ def minRes(  A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None ):
             return x, (0, k+1)
 
         if callback is not None:
-            callback(x, b-A*x )
+            callback(x)
 
     else:
         return x, (1, maxiter)

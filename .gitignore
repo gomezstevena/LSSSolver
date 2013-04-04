@@ -39,3 +39,6 @@ nosetests.xml
 
 *.sublime-project
 *.sublime-workspace
+
+#NumPy Binary Files
+*.np[yz]

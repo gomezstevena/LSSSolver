@@ -14,6 +14,7 @@ class MultigridCycle(object):
     def runCycle(self, rhs):
         raise NotImplementedError('runCycle not defined')
 
+
     @property 
     def dt(self):
         return self.ns.dt
@@ -22,12 +23,13 @@ class MultigridCycle(object):
 
 class VCycle(MultigridCycle):
     def __init__(self, system, levels, pre_iters=3, post_iters=6, 
-                                        relax_range=(1.0, 0.75), depth=0 ):
+                                        relax_range=(1.0, 0.75), depth=0, skip=1 ):
         super(VCycle, self).__init__(system)
         self.pre_iters = pre_iters
         self.post_iters = post_iters or self.pre_iters # default to same pre/post iterations
         self.depth = depth
         self.relax = tuple(relax_range)
+        self.skip = skip
 
         self.shape = (self.ns.n, self.ns.m)
 
@@ -40,9 +42,9 @@ class VCycle(MultigridCycle):
             self.ns.coarsen(dlevel)
             self.coarse_cycle = type(self)( self.ns.ns_coarse, levels = levels, 
                                     pre_iters = self.pre_iters, post_iters = self.post_iters,
-                                    relax_range = self.relax, depth=self.depth+1 )
+                                    relax_range = self.relax, depth=self.depth+1, skip=self.skip )
         else:
-            self.coarse_cycle = None
+            self.coarse_cycle = None  
 
 
     def smoothing(self, w, rhs, pre=True ):
@@ -77,19 +79,28 @@ class VCycle(MultigridCycle):
 
 
 class VCycleKrylov (VCycle):
-    def __init__(self, system, levels, skip=10, tol=1e-5, method=krylov.conjGrad, **kwargs ):
-        self.skip = skip
+    def __init__(self, system, levels, tol=1e-5, method=krylov.minRes, **kwargs ):
         self.tol = tol
         self.method = method
         super(VCycleKrylov, self).__init__(system, levels, **kwargs)
 
+    def _iterCall(self, x):
+        self._step += 1
+        if self._step%self.skip != 0: return
+
+        r = self._rhs - self.ns * x
+        self.ns.iterHook(r, self.depth, self._pre)
+
 
     def smoothing(self, w, rhs, pre=True):
+        self._step = 0
+        self._pre = pre
+        self._rhs = rhs
         iters = self.pre_iters if pre else self.post_iters
-        call = lambda x,r: self.ns.iterHook(r, self.depth, pre)
+        #call = lambda x,r: self.ns.iterHook(r, self.depth, pre)
 
         new_w, err = self.method( self.ns, rhs, x0=w, maxiter=iters, dot=self.ns.dot, 
-                                callback=call, tol=self.tol )
+                                callback=self._iterCall, tol=self.tol )
         
         w[:] = new_w
         res = rhs - self.ns * w
@@ -119,7 +130,8 @@ class MGrid(lss.LSS):
 
         self.cshape = (N, M)
         traj_coarse = self.restrict(self.traj).reshape( (N+1,M) )
-        self.ns_coarse = type(self)( self.ns, dtn, traj_coarse, shape=self.cshape )
+        sub_sys = type(self.ns)( M, **self.ns.fixed_params )
+        self.ns_coarse = type(self)( sub_sys, dtn, traj_coarse, shape=self.cshape )
 
     def restrict(self, w):
         """Restrict values in w to coarser grid"""
@@ -176,10 +188,14 @@ class MGrid(lss.LSS):
             return hstack( (wc, wc) ).reshape((-1,m))
 
     def restrictSpace(self, w):
-        return w[..., ::2]
+        return w[::2]
 
     def interpolateSpace(self, w):
-        return repeat(w, 2)
+        wf = empty( 2*len(w) )
+        wf[::2] = w
+        wf[1:-1:2] = 0.5*(w[1:] + w[:-1])
+        wf[-1] = 0.5*( w[0] + w[-1] )
+        return wf
 
     def iterHook(self, res, lvl, pre=True):
         pass
