@@ -1,9 +1,11 @@
 (Least-Squares Sensitvity Solver) LSSSolver:
 ============================================
 
-Python Code for solving least-squares sensitivity problems for Ordinary Differential Equations (ODE's) both sequentially and in parallel. Used to compute sensitvities to Long-Time-Average quantities for periodic and chaotic ODE's.
+Python Code for solving least-squares sensitivity problems for Ordinary Differential Equations (ODE's) and Partial Differential Equations (PDE's) both sequentially and in parallel. Used to compute sensitvities of Long-Time-Average quantities for periodic and chaotic ODE's and PDE's.
 
-A simple example is given in examples/testode.py
+Example systems given for the ODE [Lorenz System](http://en.wikipedia.org/wiki/Lorenz_system), and for two PDE's. These include a model of [Homogeneous Isotropic Turbulence](http://en.wikipedia.org/wiki/Homogeneous_isotropic_turbulence) and a 1D viscous model of [Burgers' Equations](http://en.wikipedia.org/wiki/Burgers'_equation).
+
+A simple ODE example is given in examples/testode.py
 
 Dependencies:
 -------------
