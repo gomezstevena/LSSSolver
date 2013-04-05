@@ -336,7 +336,6 @@ class MGridParallel(MGrid):
     def BT(self, w):
         w = w.reshape((-1, self.m) )
         v = self.matBTvec( w[1:-1] ).reshape( (-1, self.m) )
-        self.comm.fixOverlap(v)
         return v
 
     __mul__ = schur

@@ -5,7 +5,8 @@ from scipy.sparse import linalg as splinalg
 
 
 def conjGrad( A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None, M=None ):
-    """Implementation of conjugate gradient, mimics api of scipy.sparse.linalg.cg with addition of user supplied inner product.
+    """Implementation of conjugate gradient for solving symmetric positive definite linear systems,
+    mimics api of scipy.sparse.linalg.cg with addition of user supplied inner product.
     --- Also uses Polak-Ribiere formula for beta to improve performance for non fixed preconditioners"""
     n = len(b)
 
@@ -36,7 +37,7 @@ def conjGrad( A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None, M=N
         Ap *= -alpha; r += Ap; # r = r - alpha*Ap
 
         rr = dot(r,r)
-        if rr < tol*tol or rr/rr0 < tol*tol:
+        if rr/rr0 < tol*tol:
             err = (0, k+1)
             break
 
@@ -56,6 +57,9 @@ def conjGrad( A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None, M=N
     return x, err
 
 def minRes(  A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None ):
+    """Implementation of unpreconditioned MINRES for solving symmetric linear systems
+    mimics api of scipy.sparse.linalg.minres with addition of user supplied inner product.
+    """
     n = len(b)
 
     sqrt = math.sqrt # local lookup
@@ -98,14 +102,14 @@ def minRes(  A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None ):
         x += gammaip*eta*wip
         eta *= -sigmaip
 
-        # roll over
+        # roll over variables
         betai = betaip;
         sigmaim = sigmai; sigmai = sigmaip;
         gammaim = gammai; gammai = gammaip;
         wim = wi; wi = wip;
         vim = vi; vi = vip;
 
-        if abs(eta) < tol or abs(eta)/r0 < tol:
+        if abs(eta)/r0 < tol:
             return x, (0, k+1)
 
         if callback is not None:

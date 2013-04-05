@@ -67,6 +67,23 @@ class LorenzSystem (Ode):
     #    return self.dfdrho(u)
 
 
+def _constructMatrices(obj):
+        u_mid = 0.5*(obj.traj[1:] + obj.traj[:-1])
+        obj.Jac = obj.ns.dfdu( u_mid, obj.t )
+        A = obj.Jac
+
+        I = eye(obj.m)[newaxis,:,:]
+        obj.F = -I/obj.dt - A/2.
+        obj.G =  I/obj.dt - A/2.
+        N = obj.n
+        m = obj.m
+        obj._B =  bsr_matrix( (obj.F, r_[:N], r_[:N+1]),
+                                    blocksize=(m,m), shape=(N*m, (N+1)*m) ) \
+                + bsr_matrix( (obj.G, r_[1:N+1], r_[:N+1]),
+                                    blocksize=(m,m), shape=(N*m, (N+1)*m) )
+        obj._BT = obj._B.T.tobsr()
+        obj._S = obj._B * obj._B.T
+
 class ODELSS (multigrid.MGrid):
     def __init__(self, sys, dt, traj):
         super(OdeLSS, self).__init__( sys, dt, traj, shape=None)
@@ -74,29 +91,16 @@ class ODELSS (multigrid.MGrid):
         self._constructMatrices()
 
     def coarsen(self, d_level = True):
-        self.coarse_level = (d_level, False)
+        print 'called coarsen', d_level
+        #self.coarse_level = (d_level, False)
         nt = self.n // 2
         traj_coarse = self.restrict(self.traj).reshape( (nt+1,self.m) )
         self.ns_coarse = type(self)( self.ns, 2*self.dt, traj_coarse, (nt,self.m) )
         return self.ns_coarse
 
-    def _constructMatrices(self):
-        u_mid = 0.5*(self.traj[1:] + self.traj[:-1])
-        self.Jac = self.ns.dfdu( u_mid, self.t )
-        self.coarse_level = (True,False)
-
-        I = eye(self.m)[newaxis,:,:]
-        A = self.Jac
-        self.F = -I/self.dt - A/2.
-        self.G =  I/self.dt - A/2.
-        N = self.n
-        m = self.m
-        self._B =  bsr_matrix( (self.F, r_[:N], r_[:N+1]),
-                                    blocksize=(m,m), shape=(N*m, (N+1)*m) ) \
-                + bsr_matrix( (self.G, r_[1:N+1], r_[:N+1]),
-                                    blocksize=(m,m), shape=(N*m, (N+1)*m) )
-        self._BT = self._B.T.tobsr()
-        self._S = self._B * self._B.T
+    def _prepare(self):
+        self.coarse_level = (True, False)
+        _constructMatrices(self)
 
     def checkB(self, v):
 
@@ -116,7 +120,6 @@ class ODELSS (multigrid.MGrid):
 
     def matBTvec(self, w):
         return self._BT * w.ravel()
-
 
     def schur(self, w):
         return self._B*self.matBTvec(w) + self.eps * self.matEETvec(w)

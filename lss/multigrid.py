@@ -35,7 +35,7 @@ class VCycle(MultigridCycle):
 
         #print self.depth, self.pre_iters, self.post_iters
         if isinstance(levels, int):
-            levels = [ True ] * levels
+            levels = [ (True, False) ] * levels
 
         if levels:
             dlevel = levels.pop(0)
@@ -116,6 +116,9 @@ class MGrid(lss.LSS):
         self.ns_coarse = None
         self.coarse_level = None
 
+    @property 
+    def hasCoarse(self):
+        return self.ns_coarse is not None
 
     def coarsen(self, d_level=True):
         #raise NotImplementedError("Must implement coarsening in subclass")

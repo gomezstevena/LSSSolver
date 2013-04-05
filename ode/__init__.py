@@ -1,1 +1,1 @@
-from .ode import Ode, LorenzSystem, ODELSS, ODEPar
+from .ode import Ode, LorenzSystem, ODELSS, ODEPar, _constructMatrices
