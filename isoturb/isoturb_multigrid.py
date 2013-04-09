@@ -1,6 +1,7 @@
 from ..lss.multigrid import MGrid
 from .trapezoidal import IF3DTrap
 import functools
+from numpy import zeros
 
 def unraved(func):
     '''Decorator to unravel arguments and apply funciton to each component'''
@@ -23,6 +24,7 @@ class IF3DMGrid(MGrid):
         self.coarse_level = d_level
         nt, nk = self.n, self.ns.n
         ndt = self.dt
+        nu = self.ns.nu
 
         if d_level[0]: # coarsen in time
             nt //= 2
@@ -30,12 +32,13 @@ class IF3DMGrid(MGrid):
 
         if d_level[1]:
             nk //= 2
+            nu  *= 1
 
         nm = 6*4*nk*nk*(nk+1)
         self.cshape = ( nt, nm  )
 
         traj_coarse = self.restrict(self.traj).reshape([nt+1, nm])
-        self.ns_coarse = type(self)(nk, self.ns.nu, ndt, traj_coarse, shape=self.cshape)
+        self.ns_coarse = type(self)(nk, nu, ndt, traj_coarse, shape=self.cshape)
         return self.ns_coarse
 
     @unraved
@@ -44,7 +47,7 @@ class IF3DMGrid(MGrid):
         kn = k//2
         assert u.shape == (2*k, 2*k, k+1)
 
-        uc = zeros( (k, k, kn + 1), dtype=complex128 )
+        uc = zeros( (k, k, kn + 1), dtype=complex )
         
         uc[:kn,:kn,:kn] = u[:kn,:kn,:kn]
         uc[-kn+1:, :kn, :kn] = u[-kn+1:, :kn, :kn]
@@ -56,7 +59,7 @@ class IF3DMGrid(MGrid):
     def interpolateSpec(self, uc):
         k = self.ns.n
         assert uc.shape == (2*k, 2*k, k + 1)
-        uf = zeros( (4*k, 4*k, 2*k+1), dtype=complex128 )
+        uf = zeros( (4*k, 4*k, 2*k+1), dtype=complex )
         uf[:k,:k,:k] = uc[:k,:k,:k]
         uf[-k+1:,:k,:k] = uc[-k+1:,:k,:k]
         uf[:k,-k+1:,:k] = uc[:k,-k+1:,:k]

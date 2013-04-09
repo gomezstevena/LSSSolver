@@ -40,9 +40,10 @@ class VCycle(MultigridCycle):
         if levels:
             dlevel = levels.pop(0)
             self.ns.coarsen(dlevel)
+            pos_low = int( 1.25 * self.post_iters )
             self.coarse_cycle = type(self)( self.ns.ns_coarse, levels = levels, 
-                                    pre_iters = self.pre_iters, post_iters = self.post_iters,
-                                    relax_range = self.relax, depth=self.depth+1, skip=self.skip )
+                                    pre_iters = self.pre_iters, post_iters = pos_low,
+                                    relax_range = self.relax, depth=self.depth+1, skip=self.skip)
         else:
             self.coarse_cycle = None  
 
@@ -72,6 +73,11 @@ class VCycle(MultigridCycle):
             w += dw
 
             res = self.smoothing( w, rhs, False)
+        else:
+            rat = 1
+            self.post_iters  *= rat
+            res = self.smoothing(w, rhs, False)
+            self.post_iters //= rat
 
         return w
 
@@ -84,11 +90,11 @@ class VCycleKrylov (VCycle):
         self.method = method
         super(VCycleKrylov, self).__init__(system, levels, **kwargs)
 
-    def _iterCall(self, x):
+    def _iterCall(self, x, r=None):
         self._step += 1
         if self._step%self.skip != 0: return
 
-        r = self._rhs - self.ns * x
+        r = self._rhs - self.ns*x if r is None else r
         self.ns.iterHook(r, self.depth, self._pre)
 
 
@@ -125,15 +131,18 @@ class MGrid(lss.LSS):
         self.coarse_level = d_level
         N, M = self.shape
         dtn = self.dt
+        nu = self.ns.nu
         if self.coarse_level[0]:
             N //= 2
             dtn *= 2.0
         if self.coarse_level[1]:
             M /= 2
+            nu *= 2
 
         self.cshape = (N, M)
+
         traj_coarse = self.restrict(self.traj).reshape( (N+1,M) )
-        sub_sys = type(self.ns)( M, **self.ns.fixed_params )
+        sub_sys = type(self.ns)( M, nu )
         self.ns_coarse = type(self)( sub_sys, dtn, traj_coarse, shape=self.cshape )
 
     def restrict(self, w):

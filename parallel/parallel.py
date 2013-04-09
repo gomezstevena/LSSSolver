@@ -104,6 +104,28 @@ class MPIComm(object):
             self._COMM.Barrier()
             return local_data
 
+    def pad(self, data):
+        assert data.ndim == 2 and len(data)>2
+        N, M = data.shape
+        out = zeros( (N+2, M)  )
+        out[1:-1] = data
+        if N == self.chunk:
+            self.fixOverlap(out)
+            return out
+        elif N == self.chunk+1:
+            if not self.end_node:
+                self._COMM.Send( (data[-2], M, MPI.DOUBLE), dest=self.rank+1 )
+            if not self.start_node:
+                self._COMM.Recv( (out[0], M, MPI.DOUBLE), source=self.rank-1 )
+
+            if not self.start_node:
+                self._COMM.Send( ( data[1], M, MPI.DOUBLE), dest = self.rank-1 )
+            if not self.end_node:
+                self._COMM.Recv( ( out[-1], M, MPI.DOUBLE), source=self.rank+1 )
+            return out
+        else:
+            raise ValueError('bad shape')
+
 
     def fixOverlap(self, data, add=False): #if this is an offset array can add boundary arrays
         if data.size == self.chunk+2 or data.size==self.chunk+1:
@@ -112,6 +134,7 @@ class MPIComm(object):
         else:
             data = data.reshape((-1, self.M))
             M = self.M
+
         N = len(data)
 
         if N == self.chunk+2:
@@ -123,16 +146,18 @@ class MPIComm(object):
                 self._COMM.Recv( ( data[ 0], M, MPI.DOUBLE), source=self.rank-1 )
             """
             if self.start_node and not self.end_node:
-                self._COMM.Send( data[-2],  dest =self.rank+1 )
-                self._COMM.Recv( data[-1], source=self.rank+1 )
-                data[0] = 0.0
+                self._COMM.Send( (data[-2], M, MPI.DOUBLE),  dest =self.rank+1 )
+                self._COMM.Recv( (data[-1], M, MPI.DOUBLE), source=self.rank+1 )
+                #data[0] = 0.0
             elif self.end_node and not self.start_node:
-                self._COMM.Recv( data[ 0], source=self.rank-1 )
-                self._COMM.Send( data[ 1],  dest =self.rank-1 )
-                data[-1] = 0.0
+                self._COMM.Recv( (data[ 0], M, MPI.DOUBLE), source=self.rank-1 )
+                self._COMM.Send( (data[ 1], M, MPI.DOUBLE),  dest =self.rank-1 )
+                #data[-1] = 0.0
             elif not (self.start_node or self.end_node):
-                self._COMM.Sendrecv( data[-2], dest=self.rank+1, recvbuf=data[ 0], source=self.rank-1)
-                self._COMM.Sendrecv( data[ 1], dest=self.rank-1, recvbuf=data[-1], source=self.rank+1)
+                self._COMM.Sendrecv( (data[-2], M, MPI.DOUBLE), dest=self.rank+1, 
+                                      recvbuf=( data[ 0], M, MPI.DOUBLE), source=self.rank-1)
+                self._COMM.Sendrecv( (data[ 1], M, MPI.DOUBLE), dest=self.rank-1, 
+                                      recvbuf=( data[-1], M, MPI.DOUBLE), source=self.rank+1)
             """
             if not self.start_node:
                 self._COMM.Send( ( data[ 1], M, MPI.DOUBLE), dest = self.rank-1 )
@@ -338,7 +363,7 @@ class MGridParallel(MGrid):
         v = self.matBTvec( w[1:-1] ).reshape( (-1, self.m) )
         return v
 
-    __mul__ = schur
+    __call__ = __mul__ = schur
 
     def restrictTime(self, u):
         'Time Restriction done in parallel'
