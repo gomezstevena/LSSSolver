@@ -23,7 +23,7 @@ class IF3DParallel(MGridParallel, IF3DMGrid):
         if self.comm.start_node:
             print ' {}: {}\t{:.3e}\t{:d}\t{:d}'.format(pre_text, lvl, res, self.comm.N, self.m)
 
-
+    """
     def restrictTime(self, w):
         w = w.reshape((-1,self.m))
         n = len(w)
@@ -50,7 +50,7 @@ class IF3DParallel(MGridParallel, IF3DMGrid):
             #trajectory
             #return super(IF3DParallel, self).restrictTime(w)
             w = self.comm.pad(w)
-            weight = 5.0
+            weight = 2.0
             nc = self.n//2
             out = zeros( (nc+1, self.m) )
             for i in xrange(nc+1):
@@ -88,4 +88,4 @@ class IF3DParallel(MGridParallel, IF3DMGrid):
             return out
         else:
             raise ValueError('Unexpected Trajectory Length')
-
+    """

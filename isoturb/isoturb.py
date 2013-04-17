@@ -8,10 +8,11 @@ from scipy.integrate import ode
 _USE_ANFFT_ = True
 if _USE_ANFFT_:
     try:
-        import anfft
-        rfftn  = lambda x:  anfft.rfftn(x, measure=True) # measure tries to determine fastest
-        irfftn = lambda x: anfft.irfftn(x, measure=True) # method for hardware
-    except ImportError:
+        from .anfft import rfftn, irfftn
+        rfftn  = lambda x:  rfftn(x, measure=True) # measure tries to determine fastest
+        irfftn = lambda x: irfftn(x, measure=True) # method for hardware
+    except ImportError e:
+        print e
         print 'ANFFT is not installed, defaulting to numpy fft'
         _USE_ANFFT_ = False
 

@@ -19,6 +19,7 @@ if __name__ == '__main__':
     tlvls = int( np.log2(Nt) - 2 )
 
     lvls = 3*[ (False,True) ]  + tlvls*[ (True,False) ]
+    lvls.reverse()
 
 
     tol = 1e-6
@@ -32,7 +33,7 @@ if __name__ == '__main__':
 
     rhs = A.perturbation.copy()
 
-    vcycle = VCycleKrylov(A, lvls, skip=5, pre_iters=5, post_iters=10, tol=tol)
+    vcycle = VCycleKrylov(A, lvls, skip=5, pre_iters=5, post_iters=15, tol=tol)
 
 
     nr = A.normf(rhs)

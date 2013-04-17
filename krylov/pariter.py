@@ -8,6 +8,7 @@ def conjGrad( A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None, M=N
     """Implementation of conjugate gradient for solving symmetric positive definite linear systems,
     mimics api of scipy.sparse.linalg.cg with addition of user supplied inner product.
     --- Also uses Polak-Ribiere formula for beta to improve performance for non fixed preconditioners"""
+    sqrt = math.sqrt
     n = len(b)
 
     if M is None:
@@ -36,13 +37,17 @@ def conjGrad( A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None, M=N
         x += alpha*p
         Ap *= -alpha; r += Ap; # r = r - alpha*Ap
 
+
         rr = dot(r,r)
+
+        if callback is not None:
+            callback(x, sqrt(rr) )
+
         if rr/rr0 < tol*tol:
             err = (0, k+1)
             break
 
-        if callback is not None:
-            callback(x, r)
+        
 
         z = M*r
         beta = dot(z, Ap)/zr # at this point Ap = r_{k+1} - r_k
@@ -109,11 +114,11 @@ def minRes(  A, b, x0=None, tol=1e-5, maxiter=None, dot=dot, callback=None ):
         wim = wi; wi = wip;
         vim = vi; vi = vip;
 
-        if abs(eta)/r0 < tol:
-            return x, (0, k+1)
-
         if callback is not None:
             callback(x, abs(eta) )
+
+        if abs(eta)/r0 < tol:
+            return x, (0, k+1)
 
     else:
         return x, (1, maxiter)

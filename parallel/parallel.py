@@ -17,12 +17,12 @@ class MPIComm(object):
         self._COMM = MPI.COMM_WORLD
         self.size = self._COMM.size
         self.rank = self._COMM.rank
-
+        self.even = self.rank%2 == 0
         self._COMM.Barrier()
 
         #print "before shape =", shape
 
-        shape = self._COMM.bcast( shape, 0 )
+        shape = self.broadcast( shape )
         if not top:
             shape = shape[0]*self.size, shape[1]
         #print "Creating COMM object rank: {0:d}, shape:{1}".format(self.rank, shape)
@@ -128,42 +128,40 @@ class MPIComm(object):
 
 
     def fixOverlap(self, data, add=False): #if this is an offset array can add boundary arrays
-        if data.size == self.chunk+2 or data.size==self.chunk+1:
-            data = data.reshape( (-1, 1) )
-            M = 1
-        else:
-            data = data.reshape((-1, self.M))
-            M = self.M
 
-        N = len(data)
+        if data.ndim == 1:
+            if data.size == self.chunk+2 or data.size==self.chunk+1:
+                data = data.reshape( (-1, 1) )
+                M = 1
+            else:
+                data = data.reshape((-1, self.M))
+                M = self.M
+
+
+            N = len(data)
+        elif data.ndim == 2:
+            N, M = data.shape
+        else:
+            raise ValueError('Bad dimensions')
 
         if N == self.chunk+2:
 
-            
-            if not self.end_node:
-                self._COMM.Send( ( data[-2], M, MPI.DOUBLE), dest = self.rank+1 )
-            if not self.start_node:
-                self._COMM.Recv( ( data[ 0], M, MPI.DOUBLE), source=self.rank-1 )
-            """
             if self.start_node and not self.end_node:
-                self._COMM.Send( (data[-2], M, MPI.DOUBLE),  dest =self.rank+1 )
-                self._COMM.Recv( (data[-1], M, MPI.DOUBLE), source=self.rank+1 )
-                #data[0] = 0.0
+                self._COMM.Sendrecv( data[-2], dest=self.rank+1, recvbuf=data[-1], source=self.rank+1 )
             elif self.end_node and not self.start_node:
-                self._COMM.Recv( (data[ 0], M, MPI.DOUBLE), source=self.rank-1 )
-                self._COMM.Send( (data[ 1], M, MPI.DOUBLE),  dest =self.rank-1 )
-                #data[-1] = 0.0
+                self._COMM.Sendrecv( data[ 1], dest=self.rank-1, recvbuf=data[ 0], source=self.rank-1 )
             elif not (self.start_node or self.end_node):
-                self._COMM.Sendrecv( (data[-2], M, MPI.DOUBLE), dest=self.rank+1, 
-                                      recvbuf=( data[ 0], M, MPI.DOUBLE), source=self.rank-1)
-                self._COMM.Sendrecv( (data[ 1], M, MPI.DOUBLE), dest=self.rank-1, 
-                                      recvbuf=( data[-1], M, MPI.DOUBLE), source=self.rank+1)
-            """
-            if not self.start_node:
-                self._COMM.Send( ( data[ 1], M, MPI.DOUBLE), dest = self.rank-1 )
-            if not self.end_node:
-                self._COMM.Recv( ( data[-1], M, MPI.DOUBLE), source=self.rank+1 )
-            
+                if self.even:
+                    self._COMM.Sendrecv( data[-2], dest=self.rank+1, 
+                                         recvbuf=data[-1], source=self.rank+1)
+                    self._COMM.Sendrecv( data[ 1], dest=self.rank-1, 
+                                         recvbuf=data[ 0], source=self.rank-1)
+                else:
+                    self._COMM.Sendrecv( data[ 1], dest=self.rank-1, 
+                                         recvbuf=data[ 0], source=self.rank-1)
+                    self._COMM.Sendrecv( data[-2], dest=self.rank+1, 
+                                         recvbuf=data[-1], source=self.rank+1)
+
             if self.start_node:
                 data[ 0] = 0.0
             elif self.end_node:
@@ -171,7 +169,7 @@ class MPIComm(object):
             
 
         elif N == self.chunk+1:
-
+            """
             if not self.end_node:
                 self._COMM.Send( (data[-1], M, MPI.DOUBLE), dest = self.rank+1 )
             if not self.start_node:
@@ -186,6 +184,30 @@ class MPIComm(object):
                     self._COMM.Send( (data[0], M, MPI.DOUBLE), dest = self.rank-1 )
                 if not self.end_node:
                     self._COMM.Recv( (data[-1], M, MPI.DOUBLE), source=self.rank+1 )
+            """
+            if add:
+                buff = data[0].copy()
+
+            if self.start_node and not self.end_node:
+                self._COMM.Send( data[-1],  dest =self.rank+1 )
+            elif self.end_node and not self.start_node:
+                self._COMM.Recv( data[ 0], source=self.rank-1 )
+            elif not ( self.start_node or self.end_node ):
+                self._COMM.Sendrecv( data[-1], dest=self.rank+1, recvbuf=data[0], source=self.rank-1 )
+
+            
+            if add:
+                if not self.start_node:
+                    data[0] += buff
+
+                if self.end_node and not self.start_node:
+                    self._COMM.Send( data[0], dest=self.rank-1 )
+                elif self.start_node and not self.end_node:
+                    self._COMM.Recv( data[-1], source=self.rank+1 )
+                elif not (self.start_node or self.end_node):
+                    self._COMM.Sendrecv( data[0], dest=self.rank-1, recvbuf=data[-1], source=self.rank+1 )
+
+
 
         else:
             raise ValueError("Data must have N/D+2 or N/D+1 timesteps, N/D = {0:d}, data_len = {1:d}".format(self.chunk, N) )

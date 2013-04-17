@@ -23,8 +23,8 @@ class LogCallback(object):
 
     def __call__(self, x, r = None):
         self.i +=1
-        r = self.b - self.A*x if r is None else r
-        nr = self.A.normf(r)
+        nr = self.A.normf(self.b - self.A*x) if r is None else r
+        
         self.x = x
         
         tend = time.time()
