@@ -58,7 +58,7 @@ class LSS(object):
         return sqrt( self.dot(w,w) )
 
     def dot(self, a, b):
-        return dot(a, b)
+        return dot(a, b)*self.dt
 
     def normt( self, w):
         w = w.reshape( (self.n, self.m) )

@@ -10,6 +10,8 @@ from ..lss import MGrid
 
 
 MASTER = ( MPI.COMM_WORLD.rank == 0 )
+SIZE = MPI.COMM_WORLD.size
+RANK = MPI.COMM_WORLD.rank
 
 class MPIComm(object):
     
@@ -368,6 +370,7 @@ class MGridParallel(MGrid):
     def matBTvec(self, w):
         'Parallel Application of adjoint system across all time'
         w = w.reshape( (-1, self.m) )
+        #print '[{:d}]:BT, w.shape = {}'.format(self.comm.rank, w.shape)
         out = self._base.matBTvec( self, w )
         self.comm.fixOverlap(out, add = True)
         return out

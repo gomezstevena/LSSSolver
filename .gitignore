@@ -42,3 +42,6 @@ nosetests.xml
 
 #NumPy Binary Files
 *.np[yz]
+
+#Package Specific libraries
+anfft

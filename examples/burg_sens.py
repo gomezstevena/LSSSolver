@@ -1,25 +1,17 @@
 #!/usr/bin/env python
 
 import numpy as np
-from numpy import zeros
 import LSSSolver as LSS
 from LSSSolver import isoturb
-from scipy.sparse import bsr_matrix
-from sys import stdout
-import time
+import time, itertools
+import cPickle as pickle
 
+"""
 from matplotlib import pyplot as plt
 from matplotlib import animation
-
+"""
 
 class BurgersLSS(LSS.parallel.MGridParallel):
-    """def iterHook(self, res, lvl, pre=True):
-        return
-        nr = self.normf(res)
-        if self.comm.start_node:
-            prefix = 'pre ' if pre else 'post'
-            print '{:s}:\tlvl = {:d}\tres = {:.3e}\t{}'.format(prefix, lvl, nr, self.shape)"""
-
     def _prepare(self):
         self.t = 0
         LSS.ode._constructMatrices(self)
@@ -46,7 +38,7 @@ class BurgersLSS(LSS.parallel.MGridParallel):
         if n == self.n+2:
             #residual
             nc = self.n//2
-            out = zeros( (nc+2, self.m) )
+            out = np.zeros( (nc+2, self.m) )
 
 
             #print nc, n, w.shape, out.shape
@@ -67,7 +59,7 @@ class BurgersLSS(LSS.parallel.MGridParallel):
             w = self.comm.pad(w)
             weight = 2.0
             nc = self.n//2
-            out = zeros( (nc+1, self.m) )
+            out = np.zeros( (nc+1, self.m) )
             for i in xrange(nc+1):
                 out[i] = (w[2*i] + weight*w[2*i+1] + w[2*i+2])/(weight+2.0)
 
@@ -88,7 +80,7 @@ class BurgersLSS(LSS.parallel.MGridParallel):
 
         if n == self.n//2 + 2:
             nc = self.n//2
-            out = zeros( (self.n+2, self.m) )
+            out = np.zeros( (self.n+2, self.m) )
 
             for i in xrange(1, nc+1):
                 out[2*i-1] = 0.25 * (3*wc[i] + wc[i-1] )
@@ -126,21 +118,17 @@ def animate_data(data, u):
 
     return animation.FuncAnimation(fig, anim, frames=N, interval=1)
 
-def main():
+def main(lvls):
     k = 16
     nu = 0.001
     dt = np.pi / 16
     Nt = 2048
 
     tol = 1e-6
-    DIR = 'LSSSolver/isoturb/'
 
-    #lvls = [ (False,True), (False,True), (False,True), \
-    #         (True,False), (True,False), (True,False), (True,False), (True,False) ]
-    lvls = 3*[(0,1)] + 5*[(1,0)]
-    lvls.reverse()
+    
 
-    traj = np.load('btraj_2048.npy')[:Nt+1]
+    traj = np.load(DIR+'btraj_2048.npy')[:Nt+1]
     shp  = (traj.shape[0]-1, traj.shape[1])
 
     sys = isoturb.Burgers(3*k, nu)
@@ -162,17 +150,22 @@ def main():
     #return
     call = LSS.callbacks.LogCallback(A, rhs )
     t1 = time.time()
-    w, err = LSS.krylov.conjGrad(A, rhs, dot=A.dot, callback=call, M=vcycle, tol=tol, maxiter=20)
+    w, err = LSS.krylov.conjGrad(A, rhs, dot=A.dot, callback=call, M=vcycle, tol=tol, maxiter=15)
     t1 = time.time() - t1
 
+
+    res = rhs - A*w
+    r1 = A.normf(res) / A.normf(rhs)
+
+    i,r,dt = zip(*call.log)
+    t = np.cumsum(dt)
+
+    return call.log
 
     call2 = LSS.callbacks.LogCallback(A, rhs, skip=200 )
     t2 = time.time()
     w2, err = LSS.krylov.minRes(A, rhs, dot=A.dot, callback=call2, tol=tol, maxiter=1000)
     t2 = time.time() - t2
-
-    res = rhs - A*w
-    r1 = A.normf(res) / A.normf(rhs)
 
 
     v = A.BT(w)
@@ -189,8 +182,7 @@ def main():
         #anim = animate_data(v_full*nu + traj, traj)
         #anim.save('Burg_Sens.mp4', fps=48)
 
-        i,r,dt = zip(*call.log)
-        t = np.cumsum(dt)
+        
 
         i2,r2,dt2 = zip(*call2.log)
         t2 = np.cumsum(dt2)
@@ -203,6 +195,61 @@ def main():
 
         plt.show()
 
+def anagrams(*args):
+    data = []
+    for i, arg in enumerate(args):
+        data += [i]*arg
+
+    return np.unique(itertools.permutations(data))
+
+def gen_paths(x, y):
+    #print x, y
+    paths = []
+    if x > 0:
+        sub = gen_paths(x-1, y)
+        for s in sub:
+            paths.append( [(1,0)] + s )
+    if y > 0:
+        sub = gen_paths(x, y-1)
+        for s in sub:
+            paths.append( [(0,1)] + s )
+
+    if x> 0 and y > 0:
+        sub = gen_paths(x-1, y-1)
+        for s in sub:
+            paths.append( [(1,1)] + s )
+
+
+    if x==0 and y==0:
+        paths.append( [] )
+
+    return paths
 
 if __name__ == '__main__':
-    main()
+    DIR = '/master/home/gomezs/lss/'
+
+    """
+    results = []
+    all_data = gen_paths(5,3)
+    all_data.reverse()
+    size = len(all_data)
+    if LSS.parallel.MASTER:
+        print 'Trying {} unique level sets'.format( size )
+
+
+
+    for i, dat in enumerate(all_data):
+        lvls = dat
+
+        if LSS.parallel.MASTER:
+            print '{}/{}: Trying {}'.format(i+1, size, lvls)
+        log = main(lvls)
+        results.append(  log  )
+
+
+    if LSS.parallel.MASTER:
+        with open(DIR+'logs_all.pkl', 'w') as fid:
+            pickle.dump(results, fid)
+    """
+    lvls = 5*[(1,0)] + 3*[(0,1)]
+    main(lvls)

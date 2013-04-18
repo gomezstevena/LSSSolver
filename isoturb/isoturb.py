@@ -1,20 +1,22 @@
 import os, time
 from numpy import *
+from numpy.fft import rfftn, irfftn
 from scipy.linalg import *
 from scipy.integrate import ode
 
 
 """Set to True to monkey patch default rfftn and irfftn to use FFTW via ANFFT wrapper"""
-_USE_ANFFT_ = True
-if _USE_ANFFT_:
+_USING_ANFFT_ = True
+if _USING_ANFFT_:
     try:
-        from .anfft import rfftn, irfftn
-        rfftn  = lambda x:  rfftn(x, measure=True) # measure tries to determine fastest
-        irfftn = lambda x: irfftn(x, measure=True) # method for hardware
-    except ImportError e:
+        from . import anfft
+        import functools
+        rfftn  = functools.partial( anfft.rfftn , measure=True ) # measure tries to determine fastest
+        irfftn = functools.partial( anfft.irfftn, measure=True ) # method for hardware
+    except ImportError as e:
         print e
         print 'ANFFT is not installed, defaulting to numpy fft'
-        _USE_ANFFT_ = False
+        _USING_ANFFT_ = False
 
 
 class IsoBox(object):

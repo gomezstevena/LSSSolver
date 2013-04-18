@@ -1,1 +1,1 @@
-from .parallel import MPIComm, MASTER, MGridParallel
+from .parallel import MPIComm, MASTER, MGridParallel, SIZE, RANK
