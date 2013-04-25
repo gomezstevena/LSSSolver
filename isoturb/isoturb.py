@@ -3,6 +3,7 @@ from numpy import *
 from numpy.fft import rfftn, irfftn
 from scipy.linalg import *
 from scipy.integrate import ode
+from numpy.random import randn
 
 
 """Set to True to monkey patch default rfftn and irfftn to use FFTW via ANFFT wrapper"""
@@ -78,15 +79,14 @@ class IsoBox(object):
         'see class doc'
         assert x_h.shape == (self.n*2, self.n*2, self.n+1)
         x_h[:,:,[0,-1]] *= sqrt(2)
-        x = irfftn( self.extend(x_h))/sqrt(self.n)
+        x = irfftn(self.extend(x_h)) * self.n32**3
         x_h[:,:,[0,-1]] /= sqrt(2)
         return x
     
     def f2c(self, x):
         'see class doc'
         assert x.shape == (self.n32*2, self.n32*2, self.n32*2)
-        #x = pyfftw.n_byte_align(x, pyfftw.simd_alignment)
-        x_h = self.truncate( rfftn(x)/sqrt(self.n) )
+        x_h = self.truncate(rfftn(x)) / self.n32**3
         x_h[:,:,[0,-1]] /= sqrt(2)
         return x_h
 
@@ -101,14 +101,13 @@ class IF3D(IsoBox):
 
         self.ode = ode(self.ddt)
         self.ode.set_integrator('dopri5', nsteps=10000, rtol=1e-5, atol=1e-9)
+        self.POWER = 2 * self.nu
 
     def forcing(self, u_h, v_h, w_h):
-        POWER = 20 * self.nu * (self.n*2)**6
         i = [0,0,1], [0,1,0], [1,0,0]
         energy = norm(u_h[i])**2 + norm(v_h[i])**2 + norm(w_h[i])**2
-
-        
-        c = POWER / energy
+ 
+        c = self.POWER / energy
 
         fx_h, fy_h, fz_h = u_h * 0, v_h * 0, w_h * 0
         fx_h[i] += c * u_h[i]
@@ -174,7 +173,7 @@ class IF3D(IsoBox):
         dudt_h, dvdt_h, dwdt_h = self.navierStokes(u_h, v_h, w_h)
         return self.ravel(dudt_h, dvdt_h, dwdt_h)
 
-    def integrate(self, u0_h, v0_h, w0_h, t):
+    def integrate(self, u0_h, v0_h, w0_h, t, debug=False):
         'self.ode was set up in __init__, uses dopri scheme (matlab ode45)'
         self.ode.set_initial_value(self.ravel(u0_h, v0_h, w0_h), 0)
         self.ode.integrate(t)
@@ -236,15 +235,12 @@ class IF3DJacob(IF3D):
 
     def forcingTan(self, u_h, v_h, w_h, up_h, vp_h, wp_h):
         i = [0,0,1], [0,1,0], [1,0,0]
-        POWER = 20 * self.nu * (self.n*2)**6
         energy = norm(u_h[i])**2 + norm(v_h[i])**2 + norm(w_h[i])**2
         energyP = 2 * real(u_h[i] * conj(up_h[i]) + \
                            v_h[i] * conj(vp_h[i]) + \
                            w_h[i] * conj(wp_h[i])).sum()
-        
-        c = POWER / energy
-        cp = POWER / energy**2 * -energyP
-
+        c = self.POWER / energy
+        cp = self.POWER / energy**2 * -energyP
         fpx_h, fpy_h, fpz_h = up_h * 0, vp_h * 0, wp_h * 0
         fpx_h[i] += c * up_h[i] + cp * u_h[i]
         fpy_h[i] += c * vp_h[i] + cp * v_h[i]
@@ -280,10 +276,8 @@ class IF3DJacob(IF3D):
 
     def forcingAdj(self, u_h, v_h, w_h, fax_h, fay_h, faz_h):
         i = [0,0,1], [0,1,0], [1,0,0]
-        POWER = 20 * self.nu * (self.n*2)**6
         energy = norm(u_h[i])**2 + norm(v_h[i])**2 + norm(w_h[i])**2
-
-        c = POWER / energy
+        c = self.POWER / energy
 
         # fax_h, fay_h, faz_h are NOT complex derivative,
         # but derivatives wrt real and imaginary parts, i.e.,
@@ -292,8 +286,7 @@ class IF3DJacob(IF3D):
         ca = sum(u_h[i] * conj(fax_h[i]) \
                + v_h[i] * conj(fay_h[i]) \
                + w_h[i] * conj(faz_h[i])).real
-        energyA = POWER / energy**2 * -ca
-        
+        energyA = self.POWER / energy**2 * -ca
 
         ua_h, va_h, wa_h = u_h * 0, v_h * 0, w_h * 0
         ua_h[i] += c * fax_h[i]
@@ -363,8 +356,8 @@ class IF3DJacob(IF3D):
         self.pressure(u_h, v_h, w_h)
         return u_h, v_h, w_h
 
-    def testTan(self):
-        EP = 1E-7
+    def testTan(self, EP=1E-7):
+        #EP = 1E-7
         up_h, vp_h, wp_h = self.randomField()
         u0_h, v0_h, w0_h = self.randomField()
         u1_h, v1_h, w1_h = u0_h + EP * up_h, v0_h + EP * vp_h, w0_h + EP * wp_h
@@ -379,8 +372,10 @@ class IF3DJacob(IF3D):
         Dvpdt_h = (dv1dt_h - dv0dt_h) / EP
         Dwpdt_h = (dw1dt_h - dw0dt_h) / EP
 
-        print norm([dupdt_h, dvpdt_h, dwpdt_h]), \
+        ddt, err = norm([dupdt_h, dvpdt_h, dwpdt_h]), \
               norm([dupdt_h - Dupdt_h, dvpdt_h - Dvpdt_h, dwpdt_h - Dwpdt_h])
+
+        print ddt, err, err/ddt
 
     def testAdj(self):
         u_h, v_h, w_h = self.randomField()
